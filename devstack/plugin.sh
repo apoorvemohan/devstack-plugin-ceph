@@ -1,5 +1,7 @@
 # ceph.sh - DevStack extras script to install Ceph
 
+REMOTE_CEPH="True"
+
 if [[ "$1" == "source" ]]; then
     # Initial source
     source $TOP_DIR/lib/ceph
