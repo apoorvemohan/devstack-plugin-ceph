@@ -690,10 +690,10 @@ function configure_ceph_glance {
         iniset $GLANCE_API_CONF glance_store stores "file, http, swift"
 
     else
-        sudo $DOCKER_EXEC ceph -c ${CEPH_CONF_FILE} osd pool create \
+        sudo $DOCKER_EXEC ceph --id m2 -c ${CEPH_CONF_FILE} osd pool create \
             ${GLANCE_CEPH_POOL} ${GLANCE_CEPH_POOL_PG} ${GLANCE_CEPH_POOL_PGP}
 
-        sudo $DOCKER_EXEC ceph -c ${CEPH_CONF_FILE} auth \
+        sudo $DOCKER_EXEC ceph --id m2 -c ${CEPH_CONF_FILE} auth \
             get-or-create client.${GLANCE_CEPH_USER} \
             mon "allow r" \
             osd "allow class-read object_prefix rbd_children, \
@@ -713,24 +713,24 @@ function configure_ceph_glance {
 }
 
 function configure_ceph_manila {
-    sudo $DOCKER_EXEC ceph -c ${CEPH_CONF_FILE} osd pool create ${CEPHFS_METADATA_POOL} \
+    sudo $DOCKER_EXEC ceph --id m2 -c ${CEPH_CONF_FILE} osd pool create ${CEPHFS_METADATA_POOL} \
         ${CEPHFS_POOL_PG}
-    sudo $DOCKER_EXEC ceph -c ${CEPH_CONF_FILE} osd pool create ${CEPHFS_DATA_POOL} \
+    sudo $DOCKER_EXEC ceph --id m2 -c ${CEPH_CONF_FILE} osd pool create ${CEPHFS_DATA_POOL} \
         ${CEPHFS_POOL_PG}
     if [[ ${CEPHFS_MULTIPLE_FILESYSTEMS} == 'True' ]]; then
         sudo ceph -c ${CEPH_CONF_FILE} fs flag set enable_multiple true \
             --yes-i-really-mean-it
     fi
-    sudo $DOCKER_EXEC ceph -c ${CEPH_CONF_FILE} fs new ${CEPHFS_FILESYSTEM} ${CEPHFS_METADATA_POOL} \
+    sudo $DOCKER_EXEC ceph --id m2 -c ${CEPH_CONF_FILE} fs new ${CEPHFS_FILESYSTEM} ${CEPHFS_METADATA_POOL} \
         ${CEPHFS_DATA_POOL}
-    sudo $DOCKER_EXEC ceph -c ${CEPH_CONF_FILE} auth get-or-create \
+    sudo $DOCKER_EXEC ceph --id m2 -c ${CEPH_CONF_FILE} auth get-or-create \
         client.${MANILA_CEPH_USER} \
         mon "allow *" osd "allow rw" mds "allow *" mgr "allow *" \
         -o ${CEPH_CONF_DIR}/ceph.client.${MANILA_CEPH_USER}.keyring
     sudo chown ${STACK_USER}:$(id -g -n $whoami) \
         ${CEPH_CONF_DIR}/ceph.client.${MANILA_CEPH_USER}.keyring
     # Enable snapshots in CephFS.
-    sudo $DOCKER_EXEC ceph -c ${CEPH_CONF_FILE} fs set ${CEPHFS_FILESYSTEM} allow_new_snaps true \
+    sudo $DOCKER_EXEC ceph --id m2 -c ${CEPH_CONF_FILE} fs set ${CEPHFS_FILESYSTEM} allow_new_snaps true \
         --yes-i-really-mean-it
 
     # Make manila's libcephfs client a root user.
@@ -787,9 +787,9 @@ function cleanup_nfs_ganesha {
 
 function configure_ceph_embedded_manila {
     if [[ $CEPH_REPLICAS -ne 1 ]]; then
-        sudo $DOCKER_EXEC ceph -c ${CEPH_CONF_FILE} osd pool set ${CEPHFS_DATA_POOL} \
+        sudo $DOCKER_EXEC ceph --id m2 -c ${CEPH_CONF_FILE} osd pool set ${CEPHFS_DATA_POOL} \
             crush_ruleset ${RULE_ID}
-        sudo $DOCKER_EXEC ceph -c ${CEPH_CONF_FILE} osd pool set ${CEPHFS_METADATA_POOL} \
+        sudo $DOCKER_EXEC ceph --id m2 -c ${CEPH_CONF_FILE} osd pool set ${CEPHFS_METADATA_POOL} \
             crush_ruleset ${RULE_ID}
     fi
 }
@@ -805,7 +805,7 @@ function configure_ceph_embedded_nova {
 
 # configure_ceph_nova() - Nova config needs to come after Nova is set up
 function configure_ceph_nova {
-    sudo $DOCKER_EXEC ceph -c ${CEPH_CONF_FILE} osd pool create \
+    sudo $DOCKER_EXEC ceph --id m2 -c ${CEPH_CONF_FILE} osd pool create \
         ${NOVA_CEPH_POOL} ${NOVA_CEPH_POOL_PG} ${NOVA_CEPH_POOL_PGP}
 
     iniset $NOVA_CONF libvirt rbd_user ${CINDER_CEPH_USER}
@@ -818,7 +818,7 @@ function configure_ceph_nova {
     iniset $NOVA_CONF libvirt images_rbd_ceph_conf ${CEPH_CONF_FILE}
 
     if ! is_ceph_enabled_for_service cinder; then
-        sudo $DOCKER_EXEC ceph -c ${CEPH_CONF_FILE} \
+        sudo $DOCKER_EXEC ceph --id m2 -c ${CEPH_CONF_FILE} \
             auth get-or-create client.${CINDER_CEPH_USER} \
             mon "allow r" \
             osd "allow class-read object_prefix rbd_children, \
@@ -838,17 +838,17 @@ function configure_ceph_embedded_cinder {
     # Configure Cinder service options, ceph pool, ceph user and ceph key
 
     if [[ $CEPH_REPLICAS -ne 1 ]]; then
-        sudo $DOCKER_EXEC ceph -c ${CEPH_CONF_FILE} osd pool \
+        sudo $DOCKER_EXEC ceph --id m2 -c ${CEPH_CONF_FILE} osd pool \
             set ${CINDER_CEPH_POOL} crush_ruleset ${RULE_ID}
     fi
 }
 
 # configure_ceph_cinder() - Cinder config needs to come after Cinder is set up
 function configure_ceph_cinder {
-    sudo $DOCKER_EXEC ceph -c ${CEPH_CONF_FILE} osd pool create \
+    sudo $DOCKER_EXEC ceph --id m2 -c ${CEPH_CONF_FILE} osd pool create \
         ${CINDER_CEPH_POOL} ${CINDER_CEPH_POOL_PG} ${CINDER_CEPH_POOL_PGP}
 
-    sudo $DOCKER_EXEC ceph -c ${CEPH_CONF_FILE} auth get-or-create \
+    sudo $DOCKER_EXEC ceph --id m2 -c ${CEPH_CONF_FILE} auth get-or-create \
         client.${CINDER_CEPH_USER} \
         mon "allow r" \
         osd "allow class-read object_prefix rbd_children, \
