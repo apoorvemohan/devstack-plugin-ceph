@@ -251,7 +251,7 @@ function import_libvirt_secret_ceph {
 EOF
     sudo virsh secret-define --file secret.xml
     sudo virsh secret-set-value --secret ${CINDER_CEPH_UUID} \
-        --base64 $(sudo ceph -c ${CEPH_CONF_FILE} \
+        --base64 $(sudo ceph --id esiexp -c ${CEPH_CONF_FILE} \
         auth get-key client.${CINDER_CEPH_USER})
 
     sudo rm -f secret.xml
@@ -313,26 +313,26 @@ function check_os_support_for_iscsi {
 function cleanup_ceph_remote {
     # do a proper cleanup from here to avoid leftover on the remote Ceph cluster
     if is_ceph_enabled_for_service glance; then
-        sudo ceph -c ${CEPH_CONF_FILE} osd pool delete $GLANCE_CEPH_POOL $GLANCE_CEPH_POOL \
+        sudo ceph --id esiexp -c ${CEPH_CONF_FILE} osd pool delete $GLANCE_CEPH_POOL $GLANCE_CEPH_POOL \
             --yes-i-really-really-mean-it > /dev/null 2>&1
 
-        sudo ceph -c ${CEPH_CONF_FILE} auth del client.$GLANCE_CEPH_USER > /dev/null 2>&1
+        sudo ceph --id esiexp -c ${CEPH_CONF_FILE} auth del client.$GLANCE_CEPH_USER > /dev/null 2>&1
     fi
     if is_ceph_enabled_for_service cinder; then
-        sudo ceph -c ${CEPH_CONF_FILE} osd pool delete $CINDER_CEPH_POOL $CINDER_CEPH_POOL \
+        sudo ceph --id esiexp -c ${CEPH_CONF_FILE} osd pool delete $CINDER_CEPH_POOL $CINDER_CEPH_POOL \
             --yes-i-really-really-mean-it > /dev/null 2>&1
 
-        sudo ceph -c ${CEPH_CONF_FILE} auth del client.$CINDER_CEPH_USER > /dev/null 2>&1
+        sudo ceph --id esiexp -c ${CEPH_CONF_FILE} auth del client.$CINDER_CEPH_USER > /dev/null 2>&1
     fi
     if is_ceph_enabled_for_service c-bak; then
-        sudo ceph -c ${CEPH_CONF_FILE} osd pool delete $CINDER_BAK_CEPH_POOL $CINDER_BAK_CEPH_POOL \
+        sudo ceph --id esiexp -c ${CEPH_CONF_FILE} osd pool delete $CINDER_BAK_CEPH_POOL $CINDER_BAK_CEPH_POOL \
             --yes-i-really-really-mean-it > /dev/null 2>&1
 
-        sudo ceph -c ${CEPH_CONF_FILE} auth del client.$CINDER_BAK_CEPH_USER > /dev/null 2>&1
+        sudo ceph --id esiexp -c ${CEPH_CONF_FILE} auth del client.$CINDER_BAK_CEPH_USER > /dev/null 2>&1
     fi
     if is_ceph_enabled_for_service nova; then
         iniset $NOVA_CONF libvirt rbd_secret_uuid ""
-        sudo ceph -c ${CEPH_CONF_FILE} osd pool delete $NOVA_CEPH_POOL $NOVA_CEPH_POOL \
+        sudo ceph --id esiexp -c ${CEPH_CONF_FILE} osd pool delete $NOVA_CEPH_POOL $NOVA_CEPH_POOL \
             --yes-i-really-really-mean-it > /dev/null 2>&1
     fi
 }
@@ -365,13 +365,13 @@ function cleanup_ceph_general {
         cleanup_repo_nfsganesha
     fi
     if is_ceph_enabled_for_service manila; then
-        sudo ceph -c ${CEPH_CONF_FILE} fs rm $CEPHFS_FILESYSTEM \
+        sudo ceph --id esiexp -c ${CEPH_CONF_FILE} fs rm $CEPHFS_FILESYSTEM \
             --yes-i-really-mean-it
-        sudo ceph -c ${CEPH_CONF_FILE} osd pool delete $CEPHFS_METADATA_POOL $CEPHFS_METADATA_POOL \
+        sudo ceph --id esiexp -c ${CEPH_CONF_FILE} osd pool delete $CEPHFS_METADATA_POOL $CEPHFS_METADATA_POOL \
             --yes-i-really-really-mean-it > /dev/null 2>&1
-        sudo ceph -c ${CEPH_CONF_FILE} osd pool delete $CEPHFS_DATA_POOL $CEPHFS_DATA_POOL \
+        sudo ceph --id esiexp -c ${CEPH_CONF_FILE} osd pool delete $CEPHFS_DATA_POOL $CEPHFS_DATA_POOL \
             --yes-i-really-really-mean-it > /dev/null 2>&1
-        sudo ceph -c ${CEPH_CONF_FILE} auth del client.$MANILA_CEPH_USER > /dev/null 2>&1
+        sudo ceph --id esiexp -c ${CEPH_CONF_FILE} auth del client.$MANILA_CEPH_USER > /dev/null 2>&1
     fi
     cleanup_repo_ceph
 }
@@ -446,7 +446,7 @@ function configure_ceph {
     fi
 
     sudo mkdir -p ${CEPH_DATA_DIR}/mgr/ceph-${MGR_ID}
-    sudo ceph -c ${CEPH_CONF_FILE} auth get-or-create mgr.${MGR_ID} \
+    sudo ceph --id esiexp -c ${CEPH_CONF_FILE} auth get-or-create mgr.${MGR_ID} \
         mon 'allow profile mgr' mds 'allow *' osd 'allow *' \
         -o ${CEPH_DATA_DIR}/mgr/ceph-${MGR_ID}/keyring
     sudo chown -R ceph. ${CEPH_DATA_DIR}/mgr
@@ -454,27 +454,27 @@ function configure_ceph {
     # create a simple rule to take OSDs instead of hosts with CRUSH
     # then apply this rule to the default pool
     if [[ $CEPH_REPLICAS -ne 1 ]]; then
-        sudo ceph -c ${CEPH_CONF_FILE} \
+        sudo ceph --id esiexp -c ${CEPH_CONF_FILE} \
             osd crush rule create-simple devstack default osd
 
-        RULE_ID=$(sudo ceph -c ${CEPH_CONF_FILE} \
+        RULE_ID=$(sudo ceph --id esiexp -c ${CEPH_CONF_FILE} \
             osd crush rule dump devstack | \
             awk '/rule_id/ {print $2}' | \
             cut -d ',' -f1)
 
-        sudo ceph -c ${CEPH_CONF_FILE} \
+        sudo ceph --id esiexp -c ${CEPH_CONF_FILE} \
             osd pool set rbd crush_ruleset ${RULE_ID}
-        sudo ceph -c ${CEPH_CONF_FILE} \
+        sudo ceph --id esiexp -c ${CEPH_CONF_FILE} \
             osd pool set data crush_ruleset ${RULE_ID}
-        sudo ceph -c ${CEPH_CONF_FILE} \
+        sudo ceph --id esiexp -c ${CEPH_CONF_FILE} \
             osd pool set metadata crush_ruleset ${RULE_ID}
     fi
 
     # create the OSD(s)
     for rep in ${CEPH_REPLICAS_SEQ}; do
-        OSD_ID=$(sudo ceph -c ${CEPH_CONF_FILE} osd create)
+        OSD_ID=$(sudo ceph --id esiexp -c ${CEPH_CONF_FILE} osd create)
         sudo mkdir -p ${CEPH_DATA_DIR}/osd/ceph-${OSD_ID}
-        sudo ceph -c ${CEPH_CONF_FILE} auth get-or-create osd.${OSD_ID} \
+        sudo ceph --id esiexp -c ${CEPH_CONF_FILE} auth get-or-create osd.${OSD_ID} \
             mon 'allow profile osd ' osd 'allow *' | \
             sudo tee ${CEPH_DATA_DIR}/osd/ceph-${OSD_ID}/keyring
         sudo chown ceph. ${CEPH_DATA_DIR}/osd/ceph-${OSD_ID}
@@ -489,7 +489,7 @@ function configure_ceph {
         # create a MDS
         sudo mkdir -p ${CEPH_DATA_DIR}/mds/ceph-${MDS_ID}
         sudo chown ceph. ${CEPH_DATA_DIR}/mds/ceph-${MDS_ID}
-        sudo ceph -c ${CEPH_CONF_FILE} auth get-or-create mds.${MDS_ID} \
+        sudo ceph --id esiexp -c ${CEPH_CONF_FILE} auth get-or-create mds.${MDS_ID} \
             mon 'allow profile mds ' osd 'allow rw' mds 'allow' \
             -o ${CEPH_DATA_DIR}/mds/ceph-${MDS_ID}/keyring
         sudo chown ceph. /var/lib/ceph/mds/ceph-${MDS_ID}/keyring
@@ -570,7 +570,7 @@ function _configure_ceph_iscsi_gateway {
 
 function _configure_ceph_iscsi {
     _configure_ceph_iscsi_gateway
-    sudo ceph -c ${CEPH_CONF_FILE} \
+    sudo ceph --id esiexp -c ${CEPH_CONF_FILE} \
             osd pool create ${CEPH_ISCSI_POOL} ${CEPH_ISCSI_POOL_PG}
 
     sudo systemctl daemon-reload
@@ -662,7 +662,7 @@ function start_ceph_embedded_rgw {
 function configure_ceph_embedded_glance {
     # configure Glance service options, ceph pool, ceph user and ceph key
     if [[ $CEPH_REPLICAS -ne 1 ]]; then
-        sudo $DOCKER_EXEC ceph -c ${CEPH_CONF_FILE} osd pool \
+        sudo $DOCKER_EXEC ceph --id esiexp -c ${CEPH_CONF_FILE} osd pool \
             set ${GLANCE_CEPH_POOL} crush_ruleset ${RULE_ID}
     fi
 }
@@ -690,10 +690,10 @@ function configure_ceph_glance {
         iniset $GLANCE_API_CONF glance_store stores "file, http, swift"
 
     else
-        sudo $DOCKER_EXEC ceph --id m2 -c ${CEPH_CONF_FILE} osd pool create \
+        sudo $DOCKER_EXEC ceph --id esiexp -c ${CEPH_CONF_FILE} osd pool create \
             ${GLANCE_CEPH_POOL} ${GLANCE_CEPH_POOL_PG} ${GLANCE_CEPH_POOL_PGP}
 
-        sudo $DOCKER_EXEC ceph --id m2 -c ${CEPH_CONF_FILE} auth \
+        sudo $DOCKER_EXEC ceph --id esiexp -c ${CEPH_CONF_FILE} auth \
             get-or-create client.${GLANCE_CEPH_USER} \
             mon "allow r" \
             osd "allow class-read object_prefix rbd_children, \
@@ -713,24 +713,24 @@ function configure_ceph_glance {
 }
 
 function configure_ceph_manila {
-    sudo $DOCKER_EXEC ceph --id m2 -c ${CEPH_CONF_FILE} osd pool create ${CEPHFS_METADATA_POOL} \
+    sudo $DOCKER_EXEC ceph --id esiexp -c ${CEPH_CONF_FILE} osd pool create ${CEPHFS_METADATA_POOL} \
         ${CEPHFS_POOL_PG}
-    sudo $DOCKER_EXEC ceph --id m2 -c ${CEPH_CONF_FILE} osd pool create ${CEPHFS_DATA_POOL} \
+    sudo $DOCKER_EXEC ceph --id esiexp -c ${CEPH_CONF_FILE} osd pool create ${CEPHFS_DATA_POOL} \
         ${CEPHFS_POOL_PG}
     if [[ ${CEPHFS_MULTIPLE_FILESYSTEMS} == 'True' ]]; then
-        sudo ceph -c ${CEPH_CONF_FILE} fs flag set enable_multiple true \
+        sudo ceph --id esiexp -c ${CEPH_CONF_FILE} fs flag set enable_multiple true \
             --yes-i-really-mean-it
     fi
-    sudo $DOCKER_EXEC ceph --id m2 -c ${CEPH_CONF_FILE} fs new ${CEPHFS_FILESYSTEM} ${CEPHFS_METADATA_POOL} \
+    sudo $DOCKER_EXEC ceph --id esiexp -c ${CEPH_CONF_FILE} fs new ${CEPHFS_FILESYSTEM} ${CEPHFS_METADATA_POOL} \
         ${CEPHFS_DATA_POOL}
-    sudo $DOCKER_EXEC ceph --id m2 -c ${CEPH_CONF_FILE} auth get-or-create \
+    sudo $DOCKER_EXEC ceph --id esiexp -c ${CEPH_CONF_FILE} auth get-or-create \
         client.${MANILA_CEPH_USER} \
         mon "allow *" osd "allow rw" mds "allow *" mgr "allow *" \
         -o ${CEPH_CONF_DIR}/ceph.client.${MANILA_CEPH_USER}.keyring
     sudo chown ${STACK_USER}:$(id -g -n $whoami) \
         ${CEPH_CONF_DIR}/ceph.client.${MANILA_CEPH_USER}.keyring
     # Enable snapshots in CephFS.
-    sudo $DOCKER_EXEC ceph --id m2 -c ${CEPH_CONF_FILE} fs set ${CEPHFS_FILESYSTEM} allow_new_snaps true \
+    sudo $DOCKER_EXEC ceph --id esiexp -c ${CEPH_CONF_FILE} fs set ${CEPHFS_FILESYSTEM} allow_new_snaps true \
         --yes-i-really-mean-it
 
     # Make manila's libcephfs client a root user.
@@ -787,9 +787,9 @@ function cleanup_nfs_ganesha {
 
 function configure_ceph_embedded_manila {
     if [[ $CEPH_REPLICAS -ne 1 ]]; then
-        sudo $DOCKER_EXEC ceph --id m2 -c ${CEPH_CONF_FILE} osd pool set ${CEPHFS_DATA_POOL} \
+        sudo $DOCKER_EXEC ceph --id esiexp -c ${CEPH_CONF_FILE} osd pool set ${CEPHFS_DATA_POOL} \
             crush_ruleset ${RULE_ID}
-        sudo $DOCKER_EXEC ceph --id m2 -c ${CEPH_CONF_FILE} osd pool set ${CEPHFS_METADATA_POOL} \
+        sudo $DOCKER_EXEC ceph --id esiexp -c ${CEPH_CONF_FILE} osd pool set ${CEPHFS_METADATA_POOL} \
             crush_ruleset ${RULE_ID}
     fi
 }
@@ -798,14 +798,14 @@ function configure_ceph_embedded_nova {
     # configure Nova service options, ceph pool, ceph user and ceph key
 
     if [[ $CEPH_REPLICAS -ne 1 ]]; then
-        sudo $DOCKER_EXEC ceph -c ${CEPH_CONF_FILE} osd pool \
+        sudo $DOCKER_EXEC ceph --id esiexp -c ${CEPH_CONF_FILE} osd pool \
             set ${NOVA_CEPH_POOL} crush_ruleset ${RULE_ID}
     fi
 }
 
 # configure_ceph_nova() - Nova config needs to come after Nova is set up
 function configure_ceph_nova {
-    sudo $DOCKER_EXEC ceph --id m2 -c ${CEPH_CONF_FILE} osd pool create \
+    sudo $DOCKER_EXEC ceph --id esiexp -c ${CEPH_CONF_FILE} osd pool create \
         ${NOVA_CEPH_POOL} ${NOVA_CEPH_POOL_PG} ${NOVA_CEPH_POOL_PGP}
 
     iniset $NOVA_CONF libvirt rbd_user ${CINDER_CEPH_USER}
@@ -818,7 +818,7 @@ function configure_ceph_nova {
     iniset $NOVA_CONF libvirt images_rbd_ceph_conf ${CEPH_CONF_FILE}
 
     if ! is_ceph_enabled_for_service cinder; then
-        sudo $DOCKER_EXEC ceph --id m2 -c ${CEPH_CONF_FILE} \
+        sudo $DOCKER_EXEC ceph --id esiexp -c ${CEPH_CONF_FILE} \
             auth get-or-create client.${CINDER_CEPH_USER} \
             mon "allow r" \
             osd "allow class-read object_prefix rbd_children, \
@@ -838,17 +838,17 @@ function configure_ceph_embedded_cinder {
     # Configure Cinder service options, ceph pool, ceph user and ceph key
 
     if [[ $CEPH_REPLICAS -ne 1 ]]; then
-        sudo $DOCKER_EXEC ceph --id m2 -c ${CEPH_CONF_FILE} osd pool \
+        sudo $DOCKER_EXEC ceph --id esiexp -c ${CEPH_CONF_FILE} osd pool \
             set ${CINDER_CEPH_POOL} crush_ruleset ${RULE_ID}
     fi
 }
 
 # configure_ceph_cinder() - Cinder config needs to come after Cinder is set up
 function configure_ceph_cinder {
-    sudo $DOCKER_EXEC ceph --id m2 -c ${CEPH_CONF_FILE} osd pool create \
+    sudo $DOCKER_EXEC ceph --id esiexp -c ${CEPH_CONF_FILE} osd pool create \
         ${CINDER_CEPH_POOL} ${CINDER_CEPH_POOL_PG} ${CINDER_CEPH_POOL_PGP}
 
-    sudo $DOCKER_EXEC ceph --id m2 -c ${CEPH_CONF_FILE} auth get-or-create \
+    sudo $DOCKER_EXEC ceph --id esiexp -c ${CEPH_CONF_FILE} auth get-or-create \
         client.${CINDER_CEPH_USER} \
         mon "allow r" \
         osd "allow class-read object_prefix rbd_children, \
@@ -1114,10 +1114,10 @@ function start_ceph {
     sudo systemctl start ceph-mgr@${MGR_ID}
     # use `tell mgr` as the mgr might not have been activated
     # yet to register the python module commands.
-    if ! sudo ceph -c ${CEPH_CONF_FILE} tell mgr restful create-self-signed-cert; then
+    if ! sudo ceph --id esiexp -c ${CEPH_CONF_FILE} tell mgr restful create-self-signed-cert; then
         echo MGR Restful is not working, perhaps the package is not installed?
     fi
-    for id in $(sudo ceph -c ${CEPH_CONF_FILE} osd ls); do
+    for id in $(sudo ceph --id esiexp -c ${CEPH_CONF_FILE} osd ls); do
         sudo systemctl start ceph-osd@$id
     done
     if is_ceph_enabled_for_service manila; then
@@ -1150,7 +1150,7 @@ function stop_ceph {
 
     # if mon is dead or unhealthy we won't get the list
     # of osds but should continue anyways.
-    ids=$(sudo ceph -c ${CEPH_CONF_FILE} osd ls 2>/dev/null --connect-timeout 5)
+    ids=$(sudo ceph --id esiexp -c ${CEPH_CONF_FILE} osd ls 2>/dev/null --connect-timeout 5)
     for id in $ids; do
         sudo systemctl stop ceph-osd@$id
         sudo systemctl disable ceph-osd@$id
